@@ -1,0 +1,304 @@
+/* Colors and metrics follow libadwaita (GNOME 47+). */
+:root {
+  --headerbar-bg: #ffffff;
+  --headerbar-backdrop-bg: #fafafb;
+  --headerbar-fg: rgb(0 0 6 / 80%);
+  --headerbar-shade: rgb(0 0 6 / 12%);
+  --accent: #3584e4;
+  color-scheme: light;
+}
+
+/* data-theme mirrors the Asana page's own theme; until a page reports one,
+   the system preference applies. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --headerbar-bg: #2e2e32;
+    --headerbar-backdrop-bg: #222226;
+    --headerbar-fg: #ffffff;
+    --headerbar-shade: rgb(0 0 6 / 36%);
+    --accent: #78aeed;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --headerbar-bg: #2e2e32;
+  --headerbar-backdrop-bg: #222226;
+  --headerbar-fg: #ffffff;
+  --headerbar-shade: rgb(0 0 6 / 36%);
+  --accent: #78aeed;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 47px;
+  overflow: hidden;
+}
+
+body {
+  background: var(--headerbar-bg);
+  color: var(--headerbar-fg);
+  box-shadow: inset 0 -1px var(--headerbar-shade);
+  font: 11pt "Adwaita Sans", Cantarell, system-ui, sans-serif;
+  user-select: none;
+  cursor: default;
+  transition: background-color 200ms ease-out;
+}
+
+body.backdrop {
+  background: var(--headerbar-backdrop-bg);
+}
+
+#bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 46px;
+  padding: 0 6px;
+  -webkit-app-region: drag;
+  transition: opacity 200ms ease-out;
+}
+
+body.backdrop #bar {
+  opacity: 0.55;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  -webkit-app-region: no-drag;
+}
+
+button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  outline-offset: -2px;
+}
+
+svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Flat header-bar button */
+.flat-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  transition: background-color 150ms;
+}
+
+.flat-button:hover {
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.flat-button:active {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/* Tabs */
+#tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+#tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 112px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 5px 0 9px;
+  border-radius: 9px;
+  -webkit-app-region: no-drag;
+  transition:
+    background-color 150ms,
+    transform 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+#tabs.no-anim .tab {
+  transition: none;
+}
+
+/* Opaque so neighbours sliding underneath don't show through. */
+.tab.dragging,
+.tab.dragging:hover {
+  z-index: 2;
+  background:
+    linear-gradient(color-mix(in srgb, currentColor 13%, transparent), color-mix(in srgb, currentColor 13%, transparent)),
+    var(--headerbar-bg);
+  box-shadow: 0 1px 4px rgb(0 0 6 / 25%);
+  transition: background-color 150ms;
+}
+
+#tabs.reordering .tab::before {
+  opacity: 0;
+}
+
+.tab-icon-slot {
+  display: contents;
+}
+
+.tab:hover {
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+.tab.active {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.tab.active:hover {
+  background: color-mix(in srgb, currentColor 13%, transparent);
+}
+
+/* Thin separators between neighbouring inactive tabs, as in AdwTabBar. */
+.tab + .tab::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  top: 9px;
+  bottom: 9px;
+  width: 1px;
+  background: color-mix(in srgb, currentColor 15%, transparent);
+  transition: opacity 150ms;
+}
+
+.tab.active::before,
+.tab.active + .tab::before,
+.tab:hover::before,
+.tab:hover + .tab::before {
+  opacity: 0;
+}
+
+.tab-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.tab-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-top-color: currentColor;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tab-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 150ms, background-color 150ms;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close,
+.tab-close:focus-visible {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.tab-close:active {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* Window controls */
+.windowcontrols {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.windowcontrols:empty {
+  display: none;
+}
+
+body.fullscreen .windowcontrols {
+  display: none;
+}
+
+.windowcontrols button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+.windowcontrols .circle {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  transition: background-color 150ms;
+}
+
+.windowcontrols button:hover .circle {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.windowcontrols button:active .circle {
+  background: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.windowcontrols svg,
+.tab-close svg {
+  width: 16px;
+  height: 16px;
+}

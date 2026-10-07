@@ -1,0 +1,60 @@
+{
+  "name": "asana-flatpak",
+  "version": "1.3.0",
+  "description": "Unofficial tabbed Asana desktop wrapper",
+  "author": "Noah Jenkins <njenkins@hbs.edu>",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://github.com/njjenkins/asana-flatpak",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/njjenkins/asana-flatpak.git"
+  },
+  "main": "src/main.js",
+  "desktopName": "io.github.njjenkins.asana_flatpak.desktop",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux flatpak"
+  },
+  "build": {
+    "appId": "io.github.njjenkins.asana_flatpak",
+    "productName": "Asana",
+    "executableName": "asana-flatpak",
+    "files": [
+      "src/**/*",
+      "build/icon.png"
+    ],
+    "linux": {
+      "target": ["flatpak"],
+      "category": "Office",
+      "icon": "build/icon.png",
+      "syncDesktopName": true,
+      "desktop": {
+        "entry": {
+          "Name": "Asana",
+          "Comment": "Tabbed Asana client"
+        }
+      }
+    },
+    "flatpak": {
+      "artifactName": "asana-flatpak-x86_64.flatpak",
+      "runtimeVersion": "25.08",
+      "baseVersion": "25.08",
+      "license": "LICENSE",
+      "finishArgs": [
+        "--share=network",
+        "--share=ipc",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--socket=pulseaudio",
+        "--device=dri",
+        "--filesystem=xdg-download"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@malept/flatpak-bundler": "^0.4.0",
+    "electron": "^44.6.0",
+    "electron-builder": "^26.15.3"
+  }
+}

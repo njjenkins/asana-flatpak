@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src https: data:" />
+<title>Asana</title>
+<link rel="stylesheet" href="headerbar.css" />
+</head>
+<body>
+  <header id="bar">
+    <div class="windowcontrols" id="controls-start"></div>
+    <button class="flat-button" id="new-tab" title="New Tab (Ctrl+T)" aria-label="New Tab">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 2.5v11M2.5 8h11" /></svg>
+    </button>
+    <div id="tabs" role="tablist"></div>
+    <div class="windowcontrols" id="controls-end"></div>
+  </header>
+  <script src="headerbar.js"></script>
+</body>
+</html>
