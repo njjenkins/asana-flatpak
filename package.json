@@ -48,7 +48,8 @@
         "--socket=fallback-x11",
         "--socket=pulseaudio",
         "--device=dri",
-        "--filesystem=xdg-download"
+        "--filesystem=xdg-download",
+        "--filesystem=home:ro"
       ]
     }
   },
@@ -56,5 +57,9 @@
     "@malept/flatpak-bundler": "^0.4.0",
     "electron": "^44.6.0",
     "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "@eneris/push-receiver": "4.4.0",
+    "http_ece": "^1.2.1"
   }
 }

@@ -1,7 +1,7 @@
 // Runs in an isolated world inside each Asana tab. Reports whether the page is
 // currently rendering light or dark so the header bar can match Asana's own
-// theme setting, which may differ from the system one, and relays
-// notification clicks so the app can bring the right tab forward.
+// theme setting, which may differ from the system one, relays notification
+// clicks so the app can bring the right tab forward, and provides Web Push.
 const { contextBridge, ipcRenderer } = require('electron');
 
 const NOTIFICATION_CLICK = 'asana-flatpak:notification-click';
@@ -26,6 +26,74 @@ window.addEventListener('message', (event) => {
   if (event.source === window && event.data === NOTIFICATION_CLICK) {
     ipcRenderer.send('notification-click');
   }
+});
+
+// Electron has no push service, so PushManager is replaced with one backed by
+// the main process (src/push.js). Asana's service worker never sees these
+// messages; the main process shows the notifications itself.
+contextBridge.executeInMainWorld({
+  func: (bridge) => {
+    if (!window.PushManager || !window.PushSubscription) return;
+
+    const toBase64Url = (bytes) =>
+      btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const fromBase64Url = (text) =>
+      Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)).buffer;
+    const keyToString = (key) => {
+      if (typeof key === 'string') return key.replace(/=+$/, '');
+      if (key instanceof ArrayBuffer) return toBase64Url(new Uint8Array(key));
+      if (ArrayBuffer.isView(key)) return toBase64Url(new Uint8Array(key.buffer, key.byteOffset, key.byteLength));
+      throw new DOMException('The provided applicationServerKey is not valid.', 'InvalidAccessError');
+    };
+
+    const toSubscription = (sub) => {
+      if (!sub) return null;
+      const keys = { p256dh: sub.p256dh, auth: sub.auth };
+      const json = { endpoint: sub.endpoint, expirationTime: null, keys };
+      return Object.create(PushSubscription.prototype, {
+        endpoint: { value: sub.endpoint, enumerable: true },
+        expirationTime: { value: null, enumerable: true },
+        options: {
+          value: { userVisibleOnly: true, applicationServerKey: fromBase64Url(sub.applicationServerKey) },
+          enumerable: true,
+        },
+        getKey: { value: (name) => (name in keys ? fromBase64Url(keys[name]) : null) },
+        toJSON: { value: () => structuredClone(json) },
+        unsubscribe: { value: () => bridge.unsubscribe() },
+      });
+    };
+
+    const define = (name, value) =>
+      Object.defineProperty(PushManager.prototype, name, { value, writable: true, configurable: true });
+
+    define('subscribe', async function subscribe(options = {}) {
+      if (Notification.permission !== 'granted') {
+        throw new DOMException('Registration failed - permission denied', 'NotAllowedError');
+      }
+      if (options.applicationServerKey == null) {
+        throw new DOMException('Registration failed - missing applicationServerKey', 'AbortError');
+      }
+      const key = keyToString(options.applicationServerKey);
+      try {
+        return toSubscription(await bridge.subscribe(key));
+      } catch {
+        throw new DOMException('Registration failed - push service error', 'AbortError');
+      }
+    });
+    define('getSubscription', async function getSubscription() {
+      return toSubscription(await bridge.getSubscription());
+    });
+    define('permissionState', async function permissionState() {
+      return Notification.permission === 'default' ? 'prompt' : Notification.permission;
+    });
+  },
+  args: [
+    {
+      subscribe: (key) => ipcRenderer.invoke('push-subscribe', key),
+      getSubscription: () => ipcRenderer.invoke('push-get-subscription'),
+      unsubscribe: () => ipcRenderer.invoke('push-unsubscribe'),
+    },
+  ],
 });
 
 const POLL_MS = 1500;

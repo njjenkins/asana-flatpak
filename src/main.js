@@ -1,7 +1,8 @@
-const { app, BrowserWindow, WebContentsView, Menu, ipcMain, nativeTheme, screen, session, shell } = require('electron');
+const { app, BrowserWindow, WebContentsView, Menu, Notification, ipcMain, nativeTheme, screen, session, shell } = require('electron');
 const { execFile } = require('child_process');
 const path = require('path');
 const { buildContextMenu } = require('./context-menu');
+const { PushService } = require('./push');
 const { loadState, saveState } = require('./state');
 
 const HEADER_HEIGHT = 47;
@@ -25,6 +26,9 @@ let tabCounter = 0;
 let lastNormalSize = null;
 let persistenceEnabled = false;
 let saveTimer = null;
+let push = null;
+// Electron drops click handlers on notifications that get garbage collected.
+const shownNotifications = new Set();
 
 function parseUrl(url) {
   try {
@@ -58,6 +62,56 @@ function configureSession() {
     return ALLOWED_PERMISSIONS.has(permission) && isAsanaUrl(requestingOrigin);
   });
   ses.setDevicePermissionHandler(() => false);
+}
+
+function focusWindow() {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+// Mirrors the "push" and "notificationclick" handlers in Asana's service
+// worker, which never run here because the messages arrive in this process.
+function notificationTarget(origin, payload) {
+  if (typeof payload.url === 'string' && payload.url) return new URL(payload.url, origin).href;
+  const ids = [payload.current_domain_user_id, payload.inbox_item_id, payload.inbox_story_id];
+  if (ids.some((id) => id === undefined || id === null)) return origin;
+  return new URL(`/0/inbox/${ids.join('/')}`, origin).href;
+}
+
+function showPushNotification(origin, data) {
+  let payload;
+  try {
+    payload = JSON.parse(data.toString('utf8'));
+  } catch {
+    return;
+  }
+  if (!payload || typeof payload.title !== 'string') return;
+  const target = notificationTarget(origin, payload);
+  const notification = new Notification({
+    title: payload.title,
+    body: typeof payload.body === 'string' ? payload.body : '',
+  });
+  const forget = () => shownNotifications.delete(notification);
+  notification.on('click', () => {
+    forget();
+    if (!mainWindow || !isAsanaUrl(target)) return;
+    focusWindow();
+    createTab(target);
+  });
+  notification.on('close', forget);
+  notification.on('failed', forget);
+  shownNotifications.add(notification);
+  notification.show();
+}
+
+// Push requests come from the top frame of an Asana tab, keyed by its origin.
+function pushOrigin(event) {
+  const origin = event.senderFrame?.origin;
+  const fromTab = tabs.some((t) => t.view.webContents === event.sender);
+  if (!fromTab || !push || !isAsanaUrl(origin)) throw new Error('Push is not available here');
+  return origin;
 }
 
 function cleanTitle(title) {
@@ -441,11 +495,18 @@ ipcMain.on('page-theme', (event, theme) => {
 ipcMain.on('notification-click', (event) => {
   const tab = tabs.find((t) => t.view.webContents === event.sender);
   if (!tab || !mainWindow) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
+  focusWindow();
   activateTab(tab.id);
 });
+ipcMain.handle('push-subscribe', (event, applicationServerKey) => {
+  const origin = pushOrigin(event);
+  if (typeof applicationServerKey !== 'string' || !/^[A-Za-z0-9_-]+$/.test(applicationServerKey)) {
+    throw new Error('Invalid applicationServerKey');
+  }
+  return push.subscribe(origin, applicationServerKey);
+});
+ipcMain.handle('push-get-subscription', (event) => push.getSubscription(pushOrigin(event)));
+ipcMain.handle('push-unsubscribe', (event) => push.unsubscribe(pushOrigin(event)));
 ipcMain.on('window-minimize', () => mainWindow?.minimize());
 ipcMain.on('window-toggle-maximize', () => {
   if (!mainWindow) return;
@@ -467,6 +528,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     Menu.setApplicationMenu(null);
     configureSession();
+    push = new PushService(showPushNotification);
+    push.start();
     createWindow();
   });
 

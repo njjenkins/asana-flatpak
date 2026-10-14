@@ -20,13 +20,13 @@ Asana ships desktop apps for macOS and Windows, but not for Linux. The existing 
 
 - Tabs with favicons and loading spinners; drag to reorder, middle-click to close
 - Your tabs and window size come back on the next launch. Only the tab you were on loads right away; the others load when you first click them.
-- Desktop notifications from Asana; clicking one brings the window forward and switches to the tab it came from
+- Desktop notifications from Asana, delivered through Web Push like in Chrome; clicking one opens the task or inbox item in a new tab
 - Right-click menu with cut/copy/paste, spelling suggestions, and link actions
 - Asana links that open new windows (e.g. "open in new tab") open as tabs; non-Asana links and `mailto:` links open in your default apps
 - Google, Microsoft, Apple, Okta, and OneLogin sign-in pages load inside the app so SSO works
 - Window buttons follow your GNOME button layout (`org.gnome.desktop.wm.preferences button-layout`)
 - Opening the app again focuses the existing window instead of starting a second copy
-- Sandboxed: the Flatpak gets network, display, audio, and Downloads-folder access only, and notifications go through the desktop portal. Inside the app, Asana's pages can only use notifications, clipboard writes, and fullscreen. Camera, microphone, location, and device access are always denied.
+- Sandboxed: the Flatpak gets network, display, and audio access, read-only access to your home folder (so you can upload files from it, including by drag-and-drop), and write access to your Downloads folder only. Notifications go through the desktop portal. Inside the app, Asana's pages can only use notifications, clipboard writes, and fullscreen. Camera, microphone, location, and device access are always denied.
 
 ### Keyboard shortcuts
 
@@ -124,6 +124,10 @@ It's a small [Electron](https://www.electronjs.org/) app. The window is frameles
 ### Notifications
 
 For desktop notifications, turn on Asana's desktop/browser notifications in Asana's own notification settings. The app grants the permission automatically, so there's no browser prompt.
+
+Asana sends these notifications with Web Push, and Electron has no push service of its own, so the app provides one (`src/push.js`). It does what Chrome does: it registers with Google's push service using Asana's key and keeps a connection to Google's server (`mtalk.google.com`) open to receive the messages. The messages are end-to-end encrypted between Asana and the app, so Google can't read them. The app decrypts them and shows them as desktop notifications through the notification portal. The keys and registration are stored in `push-state.json` in the app's data folder. The connection only opens once Asana has subscribed.
+
+If you turned on Asana's browser notifications before this was supported, Asana may not have registered the app yet. Turn the setting off and on again, or reload the page.
 
 ## License
 
